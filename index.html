@@ -1,0 +1,131 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>汚泥ためるゲーム</title>
+<style>
+:root{
+  --bg:#e9ece8;--panel:#fff;--ink:#1f2a24;--sub:#5d6a62;--line:#c9d0ca;
+  --sludge:#6b5a2e;--sludge2:#8a7440;--tank:#dfe4df;--ok:#2f6f4f;--danger:#b3412f;--warn:#c28a1a;
+  box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px);
+}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){
+  --bg:#141a16;--panel:#1d2520;--ink:#e8eee9;--sub:#98a69d;--line:#34413a;
+  --sludge:#9b8546;--sludge2:#b79e58;--tank:#262f29;--ok:#5fb58a;--danger:#e0705c;--warn:#e0b04a;}}
+:root[data-theme="dark"]{
+  --bg:#141a16;--panel:#1d2520;--ink:#e8eee9;--sub:#98a69d;--line:#34413a;
+  --sludge:#9b8546;--sludge2:#b79e58;--tank:#262f29;--ok:#5fb58a;--danger:#e0705c;--warn:#e0b04a;}
+*{box-sizing:border-box}
+html{scroll-padding-top:env(safe-area-inset-top,0px)}
+body{margin:0;background:var(--bg);color:var(--ink);font-family:"Hiragino Sans","Hiragino Kaku Gothic ProN","Noto Sans JP",sans-serif;-webkit-tap-highlight-color:transparent}
+main{max-width:480px;margin:0 auto;padding:16px}
+h1{font-size:20px;margin:4px 0 14px}
+.panel{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:14px;margin-bottom:12px}
+.row{display:flex;gap:12px}
+label{flex:1;min-width:0;font-size:13px;color:var(--sub)}
+.calc{margin:10px 0;font-size:14px;color:var(--sub)}
+.calc b{color:var(--ink);font-size:16px}
+input{width:100%;margin-top:4px;font:inherit;font-size:18px;padding:10px 8px;border:1px solid var(--line);border-radius:10px;background:var(--bg);color:var(--ink)}
+.tankwrap{display:flex;gap:16px;align-items:stretch}
+.tank{position:relative;width:46%;height:260px;border:3px solid var(--sub);border-top:none;border-radius:0 0 18px 18px;background:var(--tank);overflow:hidden}
+.fill{position:absolute;left:0;right:0;bottom:0;height:0;background:linear-gradient(var(--sludge2),var(--sludge));transition:height .35s ease}
+.fill.full{background:linear-gradient(var(--danger),var(--sludge))}
+.read{flex:1;display:flex;flex-direction:column;justify-content:center;gap:6px}
+.big{font-size:40px;font-weight:700;line-height:1}
+.big small{font-size:16px;font-weight:400;margin-left:4px}
+.sub{font-size:14px;color:var(--sub)}
+.msg{min-height:20px;font-size:14px;color:var(--warn);font-weight:600}
+.msg.full{color:var(--danger)}
+.btns{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+button{font:inherit;font-size:20px;font-weight:700;padding:18px 0;border:none;border-radius:14px;color:#fff;touch-action:manipulation}
+button:active{transform:scale(.97)}
+#store{background:var(--ok)}
+#dump{background:var(--danger)}
+button:disabled{opacity:.4}
+button:focus-visible,input:focus-visible{outline:3px solid var(--warn);outline-offset:2px}
+@media (prefers-reduced-motion:reduce){.fill{transition:none}}
+</style>
+</head>
+<body>
+<main>
+  <h1>汚泥ためるゲーム</h1>
+
+  <section class="panel">
+    <div class="row">
+      <label>縦(m)<input id="len" type="number" inputmode="decimal" min="0.1" step="0.1" value="2"></label>
+      <label>横(m)<input id="wid" type="number" inputmode="decimal" min="0.1" step="0.1" value="2.5"></label>
+      <label>高さ・深さ(m)<input id="dep" type="number" inputmode="decimal" min="0.1" step="0.1" value="2"></label>
+    </div>
+    <div class="calc">容量 = 縦 × 横 × 深さ = <b id="capCalc">10</b> ㎥</div>
+    <div class="calc">1回にためる量</div>
+    <div class="row">
+      <label>縦(m)<input id="slen" type="number" inputmode="decimal" min="0.01" step="0.1" value="1"></label>
+      <label>横(m)<input id="swid" type="number" inputmode="decimal" min="0.01" step="0.1" value="1"></label>
+      <label>高さ・深さ(m)<input id="sdep" type="number" inputmode="decimal" min="0.01" step="0.1" value="0.5"></label>
+    </div>
+    <div class="calc">1回の量 = 縦 × 横 × 深さ = <b id="stepCalc">0.5</b> ㎥</div>
+  </section>
+
+  <section class="panel">
+    <div class="tankwrap">
+      <div class="tank" aria-hidden="true"><div class="fill" id="fill"></div></div>
+      <div class="read">
+        <div class="big"><span id="cur">0</span><small>㎥</small></div>
+        <div class="sub">容量 <span id="capShow">10</span> ㎥ ・ <span id="pct">0</span>%</div>
+        <div class="sub">空き <span id="free">10</span> ㎥</div>
+        <div class="sub">すてた回数 <span id="count">0</span> 回 ・ 合計 <span id="total">0</span> ㎥</div>
+        <div class="msg" id="msg" aria-live="polite"></div>
+      </div>
+    </div>
+  </section>
+
+  <div class="btns">
+    <button id="store">ためる</button>
+    <button id="dump">すてる</button>
+  </div>
+</main>
+<script>
+const $=id=>document.getElementById(id);
+let cur=0,count=0,total=0;
+const r=n=>Math.round(n*1000)/1000;
+const fmt=n=>String(r(n));
+function num(id){const v=parseFloat($(id).value);return v>0?v:0}
+function cap(){return r(num('len')*num('wid')*num('dep'))}
+function stepV(){return r(num('slen')*num('swid')*num('sdep'))}
+function render(msg,full){
+  const c=cap();
+  if(cur>c)cur=c;
+  const pct=c?Math.min(100,cur/c*100):0;
+  $('cur').textContent=fmt(cur);
+  $('capShow').textContent=fmt(c);
+  $('capCalc').textContent=fmt(c);
+  $('stepCalc').textContent=fmt(stepV());
+  $('pct').textContent=Math.round(pct);
+  $('free').textContent=fmt(Math.max(0,c-cur));
+  $('count').textContent=count;
+  $('total').textContent=fmt(total);
+  $('fill').style.height=pct+'%';
+  $('fill').classList.toggle('full',c>0&&cur>=c);
+  $('store').disabled=!(c>0&&stepV()>0)||cur>=c;
+  $('dump').disabled=cur<=0;
+  const m=$('msg');
+  m.textContent=msg||(c>0&&cur>=c?'満杯です。すててください':(pct>=80?'もうすぐ満杯です':''));
+  m.classList.toggle('full',!!full||(c>0&&cur>=c));
+}
+$('store').onclick=()=>{
+  const c=cap(),s=stepV();
+  const next=r(cur+s);
+  if(next>=c){const added=r(c-cur);cur=c;render(next>c?'満杯になりました(入りきらない分 '+fmt(next-c)+' ㎥)':'満杯になりました',true);return}
+  cur=next;render();
+};
+$('dump').onclick=()=>{
+  if(cur<=0)return;
+  total=r(total+cur);count++;cur=0;render(fmt(total)+' ㎥ すてました');
+};
+['len','wid','dep'].forEach(id=>$(id).oninput=()=>render());
+['slen','swid','sdep'].forEach(id=>$(id).oninput=()=>render());
+render();
+</script>
+</body>
+</html>
